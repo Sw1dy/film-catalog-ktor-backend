@@ -4,11 +4,13 @@ import com.example.filmcatalogserver.data.table.MoviesTable
 import com.example.filmcatalogserver.data.table.SearchHistoryTable
 import com.example.filmcatalogserver.data.table.UsersTable
 import com.example.filmcatalogserver.data.table.WatchlistTable
+import com.example.filmcatalogserver.util.PasswordHasher
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.config.ApplicationConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -19,6 +21,7 @@ object DatabaseFactory {
 
         transaction {
             SchemaUtils.create(UsersTable, MoviesTable, SearchHistoryTable, WatchlistTable)
+            seedAdmin()
             seedMovies()
         }
     }
@@ -35,6 +38,24 @@ object DatabaseFactory {
             validate()
         }
         return HikariDataSource(hikariConfig)
+    }
+
+    private fun seedAdmin() {
+        val adminEmail = "admin@test.ru"
+        val adminExists = UsersTable
+            .selectAll()
+            .where { UsersTable.email eq adminEmail }
+            .any()
+
+        if (!adminExists) {
+            UsersTable.insert {
+                it[firstName] = "Админ"
+                it[lastName] = "Каталога"
+                it[email] = adminEmail
+                it[passwordHash] = PasswordHasher.hash("admin123")
+                it[role] = "ADMIN"
+            }
+        }
     }
 
     private fun seedMovies() {

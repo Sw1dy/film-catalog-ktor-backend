@@ -5,7 +5,7 @@ import com.example.filmcatalogserver.data.dto.ErrorResponse
 import com.example.filmcatalogserver.data.dto.UpdateMovieRequest
 import com.example.filmcatalogserver.data.dto.toDto
 import com.example.filmcatalogserver.data.repository.MovieRepository
-import com.example.filmcatalogserver.util.isAdmin
+import com.example.filmcatalogserver.util.requireAdmin
 import com.example.filmcatalogserver.util.validateCreateMovieRequest
 import com.example.filmcatalogserver.util.validateUpdateMovieRequest
 import io.ktor.http.HttpStatusCode
@@ -53,8 +53,7 @@ fun Route.movieRoutes(repository: MovieRepository) {
         }
 
         post {
-            if (!isAdmin(call)) {
-                call.respond(HttpStatusCode.Forbidden, ErrorResponse("Доступ запрещён"))
+            if (!call.requireAdmin()) {
                 return@post
             }
 
@@ -70,8 +69,7 @@ fun Route.movieRoutes(repository: MovieRepository) {
         }
 
         put("/{id}") {
-            if (!isAdmin(call)) {
-                call.respond(HttpStatusCode.Forbidden, ErrorResponse("Доступ запрещён"))
+            if (!call.requireAdmin()) {
                 return@put
             }
 
@@ -97,8 +95,7 @@ fun Route.movieRoutes(repository: MovieRepository) {
         }
 
         delete("/{id}") {
-            if (!isAdmin(call)) {
-                call.respond(HttpStatusCode.Forbidden, ErrorResponse("Доступ запрещён"))
+            if (!call.requireAdmin()) {
                 return@delete
             }
 

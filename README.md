@@ -1,4 +1,17 @@
-# Бэкэнд для "Каталог фильмов"
+# Бэкенд для "Каталог фильмов"
+
+Kotlin Ktor backend для мобильного приложения "Каталог фильмов".
+
+Стек:
+
+- Kotlin
+- Ktor Server
+- PostgreSQL
+- Exposed
+- HikariCP
+- kotlinx.serialization
+- BCrypt
+
 ## Запуск PostgreSQL
 
 ```bash
@@ -27,14 +40,127 @@ gradlew.bat run
 
 Сервер запускается на `http://localhost:8080`.
 
-При первом запуске сервер создаёт таблицы и добавляет начальные фильмы:
+При первом запуске сервер создаёт таблицы, добавляет начальные фильмы и тестового администратора.
+
+Начальные фильмы:
 
 - Грязные деньги
 - Детство Шелдона
 - Джентльмены
 - Хвост Феи
 
-## Endpoints
+## Авторизация
+
+Авторизация реализована на сервере без Firebase и JWT.
+
+Пользователи хранятся в PostgreSQL в таблице `users`, пароли хранятся как BCrypt hash. Токены временно хранятся в памяти сервера через `SessionStorage`.
+
+Тестовый администратор:
+
+- email: `admin@test.ru`
+- password: `admin123`
+
+### POST /auth/register
+
+Регистрирует пользователя с ролью `USER`.
+
+Пример запроса:
+
+```json
+{
+  "firstName": "Никита",
+  "lastName": "Породин",
+  "email": "nikita@test.ru",
+  "password": "123456"
+}
+```
+
+Успешный ответ: `201 Created`.
+
+```json
+{
+  "token": "generated-token",
+  "user": {
+    "id": 1,
+    "firstName": "Никита",
+    "lastName": "Породин",
+    "email": "nikita@test.ru",
+    "role": "USER"
+  }
+}
+```
+
+### POST /auth/login
+
+Выполняет вход по email и паролю.
+
+Пример запроса:
+
+```json
+{
+  "email": "nikita@test.ru",
+  "password": "123456"
+}
+```
+
+Успешный ответ: `200 OK`.
+
+```json
+{
+  "token": "generated-token",
+  "user": {
+    "id": 1,
+    "firstName": "Никита",
+    "lastName": "Породин",
+    "email": "nikita@test.ru",
+    "role": "USER"
+  }
+}
+```
+
+### GET /auth/me
+
+Возвращает текущего пользователя по токену.
+
+Header:
+
+```http
+Authorization: Bearer <token>
+```
+
+Успешный ответ: `200 OK`.
+
+```json
+{
+  "id": 1,
+  "firstName": "Никита",
+  "lastName": "Породин",
+  "email": "nikita@test.ru",
+  "role": "USER"
+}
+```
+
+## Фильмы
+
+Публичные endpoints без авторизации:
+
+- `GET /movies`
+- `GET /movies/{id}`
+- `GET /movies/search?query=`
+
+Админские endpoints требуют роль `ADMIN` и header:
+
+```http
+Authorization: Bearer <token>
+```
+
+- `POST /movies`
+- `PUT /movies/{id}`
+- `DELETE /movies/{id}`
+
+Если токен не передан или не найден, сервер вернёт `401 Unauthorized`.
+
+Если пользователь авторизован, но не является администратором, сервер вернёт `403 Forbidden`.
 
 ### GET /movies
 
@@ -66,7 +192,7 @@ gradlew.bat run
 
 ### POST /movies
 
-Добавляет фильм.
+Добавляет фильм. Требуется токен администратора.
 
 Пример запроса:
 
@@ -85,7 +211,7 @@ gradlew.bat run
 
 ### PUT /movies/{id}
 
-Обновляет фильм.
+Обновляет фильм. Требуется токен администратора.
 
 Пример запроса:
 
@@ -104,7 +230,7 @@ gradlew.bat run
 
 ### DELETE /movies/{id}
 
-Удаляет фильм.
+Удаляет фильм. Требуется токен администратора.
 
 Перед удалением сервер удаляет связанные записи из `watchlist`.
 
@@ -125,13 +251,3 @@ gradlew.bat run
   "message": "Описание ошибки"
 }
 ```
-
-## Авторизация
-
-Сейчас авторизация сделана заглушкой:
-
-```kotlin
-fun isAdmin(call: ApplicationCall): Boolean = true
-```
-
-`POST`, `PUT` и `DELETE` уже проверяют эту функцию. Позже её можно заменить на проверку Firebase token.

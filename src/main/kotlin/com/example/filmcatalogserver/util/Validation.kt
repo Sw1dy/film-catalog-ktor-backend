@@ -2,9 +2,6 @@ package com.example.filmcatalogserver.util
 
 import com.example.filmcatalogserver.data.dto.CreateMovieRequest
 import com.example.filmcatalogserver.data.dto.UpdateMovieRequest
-import io.ktor.server.application.ApplicationCall
-
-fun isAdmin(call: ApplicationCall): Boolean = true
 
 fun validateCreateMovieRequest(request: CreateMovieRequest): String? =
     validateMovieFields(

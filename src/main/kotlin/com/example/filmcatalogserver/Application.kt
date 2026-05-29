@@ -3,6 +3,8 @@ package com.example.filmcatalogserver
 import com.example.filmcatalogserver.config.DatabaseFactory
 import com.example.filmcatalogserver.data.dto.ErrorResponse
 import com.example.filmcatalogserver.data.repository.MovieRepositoryImpl
+import com.example.filmcatalogserver.data.repository.UserRepositoryImpl
+import com.example.filmcatalogserver.routing.authRoutes
 import com.example.filmcatalogserver.routing.movieRoutes
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -59,6 +61,7 @@ fun Application.module() {
     DatabaseFactory.init(environment.config)
 
     routing {
+        authRoutes(UserRepositoryImpl())
         movieRoutes(MovieRepositoryImpl())
     }
 }
