@@ -6,8 +6,8 @@ import com.example.filmcatalogserver.data.dto.LoginRequest
 import com.example.filmcatalogserver.data.dto.RegisterRequest
 import com.example.filmcatalogserver.data.dto.toDto
 import com.example.filmcatalogserver.data.repository.UserRepository
+import com.example.filmcatalogserver.util.JwtService
 import com.example.filmcatalogserver.util.PasswordHasher
-import com.example.filmcatalogserver.util.SessionStorage
 import com.example.filmcatalogserver.util.getCurrentUser
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -35,7 +35,7 @@ fun Route.authRoutes(repository: UserRepository) {
                 return@post
             }
 
-            val token = SessionStorage.createSession(user)
+            val token = JwtService.generateToken(user)
             call.respond(HttpStatusCode.Created, AuthResponse(token, user.toDto()))
         }
 
@@ -52,7 +52,7 @@ fun Route.authRoutes(repository: UserRepository) {
                 return@post
             }
 
-            val token = SessionStorage.createSession(credentials.user)
+            val token = JwtService.generateToken(credentials.user)
             call.respond(HttpStatusCode.OK, AuthResponse(token, credentials.user.toDto()))
         }
 

@@ -17,7 +17,7 @@ fun getCurrentUser(call: ApplicationCall): AuthUser? {
         ?.removePrefix(BEARER_PREFIX)
         ?.trim()
 
-    return token?.takeIf { it.isNotBlank() }?.let(SessionStorage::getUser)
+    return token?.takeIf { it.isNotBlank() }?.let(JwtService::verifyToken)
 }
 
 suspend fun ApplicationCall.requireAdmin(): Boolean {
