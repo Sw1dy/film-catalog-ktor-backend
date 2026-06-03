@@ -22,7 +22,16 @@ import io.ktor.server.routing.route
 fun Route.movieRoutes(repository: MovieRepository) {
     route("/movies") {
         get {
-            val movies = repository.getAll().map { it.toDto() }
+            val genre = call.request.queryParameters["genre"]?.trim()?.takeIf { it.isNotBlank() }
+            val yearParameter = call.request.queryParameters["year"]?.trim()?.takeIf { it.isNotBlank() }
+            val year = yearParameter?.toIntOrNull()
+
+            if (yearParameter != null && year == null) {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Некорректный год"))
+                return@get
+            }
+
+            val movies = repository.getFiltered(genre, year).map { it.toDto() }
             call.respond(HttpStatusCode.OK, movies)
         }
 
@@ -35,6 +44,14 @@ fun Route.movieRoutes(repository: MovieRepository) {
 
             val movies = repository.searchByTitle(query).map { it.toDto() }
             call.respond(HttpStatusCode.OK, movies)
+        }
+
+        get("/genres") {
+            call.respond(HttpStatusCode.OK, repository.getGenres())
+        }
+
+        get("/years") {
+            call.respond(HttpStatusCode.OK, repository.getYears())
         }
 
         get("/{id}") {

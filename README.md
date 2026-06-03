@@ -1,9 +1,6 @@
 # Бэкенд для "Каталог фильмов"
 
-Kotlin Ktor backend для мобильного приложения "Каталог фильмов".
-
 Стек:
-
 - Kotlin
 - Ktor Server
 - PostgreSQL
@@ -11,6 +8,7 @@ Kotlin Ktor backend для мобильного приложения "Катал
 - HikariCP
 - kotlinx.serialization
 - BCrypt
+- JWT
 
 ## Запуск PostgreSQL
 
@@ -42,16 +40,10 @@ gradlew.bat run
 
 При первом запуске сервер создаёт таблицы, добавляет начальные фильмы и тестового администратора.
 
-Начальные фильмы:
-
-- Грязные деньги
-- Детство Шелдона
-- Джентльмены
-- Хвост Феи
 
 ## Авторизация
 
-Авторизация реализована на сервере без Firebase.
+Авторизация реализована на сервере.
 
 Пользователи хранятся в PostgreSQL в таблице `users`, пароли хранятся как BCrypt hash. Сервер выдаёт JWT, который Android-клиент передаёт в заголовке `Authorization: Bearer <token>`.
 
@@ -64,8 +56,6 @@ gradlew.bat run
 
 Регистрирует пользователя с ролью `USER`.
 
-Пример запроса:
-
 ```json
 {
   "firstName": "Никита",
@@ -77,29 +67,14 @@ gradlew.bat run
 
 Успешный ответ: `201 Created`.
 
-```json
-{
-  "token": "generated-token",
-  "user": {
-    "id": 1,
-    "firstName": "Никита",
-    "lastName": "Породин",
-    "email": "nikita@test.ru",
-    "role": "USER"
-  }
-}
-```
-
 ### POST /auth/login
 
 Выполняет вход по email и паролю.
 
-Пример запроса:
-
 ```json
 {
-  "email": "nikita@test.ru",
-  "password": "123456"
+  "email": "admin@test.ru",
+  "password": "admin123"
 }
 ```
 
@@ -107,37 +82,23 @@ gradlew.bat run
 
 ```json
 {
-  "token": "generated-token",
+  "token": "jwt-token",
   "user": {
     "id": 1,
-    "firstName": "Никита",
-    "lastName": "Породин",
-    "email": "nikita@test.ru",
-    "role": "USER"
+    "firstName": "Админ",
+    "lastName": "Каталога",
+    "email": "admin@test.ru",
+    "role": "ADMIN"
   }
 }
 ```
 
 ### GET /auth/me
 
-Возвращает текущего пользователя по токену.
-
-Header:
+Возвращает текущего пользователя по JWT.
 
 ```http
 Authorization: Bearer <token>
-```
-
-Успешный ответ: `200 OK`.
-
-```json
-{
-  "id": 1,
-  "firstName": "Никита",
-  "lastName": "Породин",
-  "email": "nikita@test.ru",
-  "role": "USER"
-}
 ```
 
 ## Фильмы
@@ -145,6 +106,11 @@ Authorization: Bearer <token>
 Публичные endpoints без авторизации:
 
 - `GET /movies`
+- `GET /movies?genre=Комедия`
+- `GET /movies?year=2017`
+- `GET /movies?genre=Комедия&year=2017`
+- `GET /movies/genres`
+- `GET /movies/years`
 - `GET /movies/{id}`
 - `GET /movies/search?query=`
 
@@ -158,13 +124,62 @@ Authorization: Bearer <token>
 - `PUT /movies/{id}`
 - `DELETE /movies/{id}`
 
-Если токен не передан или не найден, сервер вернёт `401 Unauthorized`.
+Если токен не передан или невалиден, сервер вернёт `401 Unauthorized`.
 
 Если пользователь авторизован, но не является администратором, сервер вернёт `403 Forbidden`.
 
 ### GET /movies
 
-Возвращает список всех фильмов.
+Без query-параметров возвращает весь каталог.
+
+### GET /movies?genre=Комедия
+
+Возвращает фильмы выбранного жанра. Фильтрация по жанру выполняется без учёта регистра.
+
+### GET /movies?year=2017
+
+Возвращает фильмы выбранного года выпуска.
+
+Если `year` передан не числом, сервер вернёт:
+
+```json
+{
+  "message": "Некорректный год"
+}
+```
+
+### GET /movies?genre=Комедия&year=2017
+
+Возвращает фильмы, которые одновременно подходят по жанру и году.
+
+### GET /movies/genres
+
+Возвращает уникальные жанры из таблицы фильмов, отсортированные по алфавиту.
+
+```json
+[
+  "Аниме",
+  "Драма",
+  "Комедия",
+  "Криминал"
+]
+```
+
+### GET /movies/years
+
+Возвращает уникальные годы выпуска, отсортированные по убыванию.
+
+```json
+[
+  2026,
+  2019,
+  2018,
+  2017,
+  2009
+]
+```
+
+`/movies/genres` и `/movies/years` нужны клиентскому приложению для отображения доступных фильтров на главной странице. Android-клиент может загрузить эти списки, показать пользователю варианты в UI, а затем вызвать `GET /movies` с выбранными query-параметрами.
 
 ### GET /movies/{id}
 
@@ -194,8 +209,6 @@ Authorization: Bearer <token>
 
 Добавляет фильм. Требуется токен администратора.
 
-Пример запроса:
-
 ```json
 {
   "title": "Интерстеллар",
@@ -212,21 +225,6 @@ Authorization: Bearer <token>
 ### PUT /movies/{id}
 
 Обновляет фильм. Требуется токен администратора.
-
-Пример запроса:
-
-```json
-{
-  "title": "Интерстеллар",
-  "description": "Обновлённое описание фильма.",
-  "year": 2014,
-  "genre": "Научная фантастика",
-  "rating": 8.8,
-  "imageUrl": "https://example.com/images/interstellar-updated.jpg"
-}
-```
-
-Успешный ответ: `200 OK`.
 
 ### DELETE /movies/{id}
 
@@ -250,4 +248,16 @@ Authorization: Bearer <token>
 {
   "message": "Описание ошибки"
 }
+```
+
+## Тесты
+
+```bash
+./gradlew test
+```
+
+На Windows:
+
+```bash
+gradlew.bat test
 ```
