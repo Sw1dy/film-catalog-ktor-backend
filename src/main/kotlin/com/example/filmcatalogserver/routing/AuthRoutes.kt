@@ -9,6 +9,8 @@ import com.example.filmcatalogserver.data.repository.UserRepository
 import com.example.filmcatalogserver.util.JwtService
 import com.example.filmcatalogserver.util.PasswordHasher
 import com.example.filmcatalogserver.util.getCurrentUser
+import com.example.filmcatalogserver.util.validateLoginRequest
+import com.example.filmcatalogserver.util.validateRegisterRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
@@ -31,7 +33,7 @@ fun Route.authRoutes(repository: UserRepository) {
             val passwordHash = PasswordHasher.hash(request.password)
             val user = repository.create(request, passwordHash)
             if (user == null) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Пользователь с таким email уже существует"))
+                call.respond(HttpStatusCode.Conflict, ErrorResponse("Пользователь с таким email уже существует"))
                 return@post
             }
 
@@ -41,12 +43,14 @@ fun Route.authRoutes(repository: UserRepository) {
 
         post("/login") {
             val request = call.receive<LoginRequest>()
-            if (request.email.isBlank() || request.password.isBlank()) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Email и пароль не должны быть пустыми"))
+            val validationError = validateLoginRequest(request)
+            if (validationError != null) {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse(validationError))
                 return@post
             }
 
-            val credentials = repository.findByEmail(request.email)
+            val normalizedEmail = request.email.trim().lowercase()
+            val credentials = repository.findByEmail(normalizedEmail)
             if (credentials == null || !PasswordHasher.verify(request.password, credentials.passwordHash)) {
                 call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Неверный email или пароль"))
                 return@post
@@ -65,15 +69,5 @@ fun Route.authRoutes(repository: UserRepository) {
 
             call.respond(HttpStatusCode.OK, user.toDto())
         }
-    }
-}
-
-private fun validateRegisterRequest(request: RegisterRequest): String? {
-    return when {
-        request.firstName.isBlank() -> "Имя не должно быть пустым"
-        request.lastName.isBlank() -> "Фамилия не должна быть пустой"
-        request.email.isBlank() -> "Email не должен быть пустым"
-        request.password.isBlank() -> "Пароль не должен быть пустым"
-        else -> null
     }
 }
